@@ -69,6 +69,13 @@ public class DocumentProcessorService {
             List<String> chunks = createChunks(cleanedText);
             log.info("Created {} chunks for {}", chunks.size(), driveDoc.getName());
 
+            // Check if any chunks were created
+            if (chunks.isEmpty()) {
+                log.warn("No chunks created for document {} (text too short: {} chars, min: {})",
+                        driveDoc.getName(), cleanedText.length(), minChunkLength);
+                return false;
+            }
+
             // Convert to Document objects
             List<Document> documents = new ArrayList<>();
             for (int i = 0; i < chunks.size(); i++) {
@@ -188,6 +195,15 @@ public class DocumentProcessorService {
                 case "application/vnd.ms-excel" -> extractXlsText(content);
                 case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> extractXlsxText(content);
                 case "text/plain", "text/csv" -> new String(content);
+                // Google native formats - exported as Office formats by GoogleDriveService
+                case "application/vnd.google-apps.document" -> {
+                    log.info("Processing Google Doc (exported as docx): {}", fileName);
+                    yield extractDocxText(content);
+                }
+                case "application/vnd.google-apps.spreadsheet" -> {
+                    log.info("Processing Google Sheet (exported as xlsx): {}", fileName);
+                    yield extractXlsxText(content);
+                }
                 default -> {
                     // Try to detect by file extension
                     if (fileName.endsWith(".pdf")) yield extractPdfText(content);

@@ -17,9 +17,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service for Apache Solr search operations
@@ -30,6 +34,23 @@ import java.util.Map;
 public class SolrSearchService {
 
     private final SolrClient solrClient;
+
+    // Common English stop words to filter from queries
+    private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
+        "a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might",
+        "must", "shall", "can", "need", "dare", "ought", "used", "to", "of", "in", "for", "on", "with",
+        "at", "by", "from", "as", "into", "through", "during", "before", "after", "above", "below",
+        "between", "under", "again", "further", "then", "once", "here", "there", "when", "where",
+        "why", "how", "all", "each", "few", "more", "most", "other", "some", "such", "no", "nor",
+        "not", "only", "own", "same", "so", "than", "too", "very", "just", "also", "now", "i", "me",
+        "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself",
+        "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself",
+        "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this",
+        "that", "these", "those", "am", "about", "against", "any", "because", "both", "but", "if",
+        "while", "until", "up", "down", "out", "off", "over", "under", "get", "give", "go", "find",
+        "file", "document", "documents", "files", "want", "need", "please", "help", "show", "tell"
+    ));
 
     @Value("${search.max-results:20}")
     private int maxResults;
@@ -47,6 +68,12 @@ public class SolrSearchService {
      * Add documents to Solr index
      */
     public boolean addDocuments(List<Document> documents) {
+        // Check for empty list to avoid "missing content stream" error
+        if (documents == null || documents.isEmpty()) {
+            log.warn("No documents to add to Solr (empty list)");
+            return false;
+        }
+
         try {
             Collection<SolrInputDocument> solrDocs = new ArrayList<>();
 
@@ -84,6 +111,15 @@ public class SolrSearchService {
         try {
             long startTime = System.currentTimeMillis();
 
+            // Remove stop words from query for better relevance
+            String filteredQuery = removeStopWords(query);
+            log.info("Original query: '{}' -> Filtered query: '{}'", query, filteredQuery);
+
+            // If all words were stop words, use original query
+            if (filteredQuery.trim().isEmpty()) {
+                filteredQuery = query;
+            }
+
             // Build Solr query with boosting
             SolrQuery solrQuery = new SolrQuery();
 
@@ -91,18 +127,22 @@ public class SolrSearchService {
             solrQuery.setParam("defType", "edismax");
 
             // Query with boosting - doc_name gets higher boost
-            String escapedQuery = escapeQueryChars(query);
+            String escapedQuery = escapeQueryChars(filteredQuery);
             solrQuery.setQuery(escapedQuery);
 
-            // Query fields with boost values
+            // Query fields with boost values - significantly higher boost for doc_name
             solrQuery.setParam("qf",
-                String.format("doc_name^%.1f content^%.1f", docNameBoost, contentBoost));
+                String.format("doc_name^%.1f content^%.1f", docNameBoost * 5, contentBoost));
 
-            // Phrase boost for exact matches
-            solrQuery.setParam("pf", "doc_name^20 content^5");
+            // Phrase boost for exact matches - very high for doc_name
+            solrQuery.setParam("pf", "doc_name^100 content^10");
+            solrQuery.setParam("pf2", "doc_name^50 content^5");
 
-            // Minimum should match
-            solrQuery.setParam("mm", "50%");
+            // Tie breaker to allow other fields to contribute
+            solrQuery.setParam("tie", "0.1");
+
+            // Minimum should match - require more terms to match
+            solrQuery.setParam("mm", "2<75% 5<60%");
 
             // Number of results
             solrQuery.setRows(numResults > 0 ? numResults : maxResults);
@@ -302,6 +342,18 @@ public class SolrSearchService {
             log.error("Solr health check failed: {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Remove stop words from query for better search relevance
+     */
+    private String removeStopWords(String query) {
+        if (query == null || query.isEmpty()) {
+            return query;
+        }
+        return Arrays.stream(query.toLowerCase().split("\\s+"))
+                .filter(word -> !STOP_WORDS.contains(word.toLowerCase()))
+                .collect(Collectors.joining(" "));
     }
 
     /**
