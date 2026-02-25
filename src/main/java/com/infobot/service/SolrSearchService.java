@@ -324,13 +324,25 @@ public class SolrSearchService {
 
     private String getStringField(SolrDocument doc, String field) {
         Object value = doc.getFieldValue(field);
-        return value != null ? value.toString() : "";
+        if (value == null) return "";
+        if (value instanceof java.util.Collection) {
+            java.util.Collection<?> col = (java.util.Collection<?>) value;
+            return col.isEmpty() ? "" : col.iterator().next().toString();
+        }
+        return value.toString();
     }
 
     private Integer getIntField(SolrDocument doc, String field) {
         Object value = doc.getFieldValue(field);
         if (value == null) return 0;
         if (value instanceof Integer) return (Integer) value;
+        if (value instanceof java.util.Collection) {
+            java.util.Collection<?> col = (java.util.Collection<?>) value;
+            if (col.isEmpty()) return 0;
+            Object first = col.iterator().next();
+            if (first instanceof Integer) return (Integer) first;
+            return Integer.parseInt(first.toString());
+        }
         return Integer.parseInt(value.toString());
     }
 }
