@@ -37,8 +37,19 @@ public class DocumentSyncService {
     @PostConstruct
     public void init() {
         if (syncEnabled) {
-            log.info("Document sync service initialized. Starting initial sync...");
+            log.info("Document sync service initialized.");
+
+            // Load already indexed doc IDs from Solr to avoid re-indexing
+            try {
+                Set<String> existingDocIds = solrSearchService.getAllIndexedDocIds();
+                indexedDocIds.addAll(existingDocIds);
+                log.info("Loaded {} already-indexed documents from Solr", indexedDocIds.size());
+            } catch (Exception e) {
+                log.warn("Could not load existing doc IDs from Solr: {}", e.getMessage());
+            }
+
             // Run initial sync in background
+            log.info("Starting initial sync...");
             new Thread(this::syncDocuments).start();
         } else {
             log.info("Document sync is disabled");

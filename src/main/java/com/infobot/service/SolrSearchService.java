@@ -330,6 +330,41 @@ public class SolrSearchService {
     }
 
     /**
+     * Get all unique doc_ids that are already indexed in Solr
+     * Used at startup to avoid re-indexing existing documents
+     */
+    public Set<String> getAllIndexedDocIds() {
+        Set<String> docIds = new HashSet<>();
+        try {
+            SolrQuery query = new SolrQuery("*:*");
+            query.setFields("doc_id");
+            query.setRows(0);
+
+            // Use faceting to get unique doc_ids efficiently
+            query.setFacet(true);
+            query.addFacetField("doc_id");
+            query.setFacetLimit(-1); // No limit - get all unique values
+            query.setFacetMinCount(1);
+
+            QueryResponse response = solrClient.query(query);
+
+            if (response.getFacetField("doc_id") != null) {
+                response.getFacetField("doc_id").getValues().forEach(count -> {
+                    if (count.getName() != null) {
+                        docIds.add(count.getName());
+                    }
+                });
+            }
+
+            log.info("Loaded {} unique doc_ids from Solr index", docIds.size());
+
+        } catch (SolrServerException | IOException e) {
+            log.error("Error getting indexed doc_ids: {}", e.getMessage(), e);
+        }
+        return docIds;
+    }
+
+    /**
      * Check if Solr is healthy
      */
     public boolean isHealthy() {
