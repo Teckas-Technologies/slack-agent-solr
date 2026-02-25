@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema name="documents" version="1.6">
+
+    <!-- Unique document chunk ID -->
+    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
+
+    <!-- Document metadata -->
+    <field name="doc_id" type="string" indexed="true" stored="true"/>
+    <field name="doc_name" type="text_general" indexed="true" stored="true"/>
+    <field name="doc_source" type="string" indexed="true" stored="true"/>
+    <field name="doc_type" type="string" indexed="true" stored="true"/>
+    <field name="url" type="string" indexed="false" stored="true"/>
+    <field name="chunk_index" type="pint" indexed="true" stored="true"/>
+    <field name="modified_time" type="string" indexed="true" stored="true"/>
+    <field name="created_time" type="string" indexed="true" stored="true"/>
+
+    <!-- Main content field - full text searchable -->
+    <field name="content" type="text_general" indexed="true" stored="true"/>
+
+    <!-- Catch-all field for full-text search -->
+    <field name="_text_" type="text_general" indexed="true" stored="false" multiValued="true"/>
+
+    <!-- Required by Solr -->
+    <field name="_version_" type="plong" indexed="false" stored="false"/>
+
+    <!-- Copy fields for better search -->
+    <copyField source="doc_name" dest="_text_"/>
+    <copyField source="content" dest="_text_"/>
+
+    <!-- Unique key -->
+    <uniqueKey>id</uniqueKey>
+
+    <!-- Field Types -->
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
+    <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+    <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+
+    <!-- Text field with stemming, stopwords, and lowercase -->
+    <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
+        <analyzer type="index">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.StopFilterFactory" ignoreCase="true" words="lang/stopwords_en.txt"/>
+            <filter class="solr.PorterStemFilterFactory"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.StandardTokenizerFactory"/>
+            <filter class="solr.LowerCaseFilterFactory"/>
+            <filter class="solr.StopFilterFactory" ignoreCase="true" words="lang/stopwords_en.txt"/>
+            <filter class="solr.PorterStemFilterFactory"/>
+        </analyzer>
+    </fieldType>
+
+</schema>

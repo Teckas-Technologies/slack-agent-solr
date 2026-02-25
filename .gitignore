@@ -1,0 +1,17 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+
+# Environment and secrets
+.env
+service-account.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
