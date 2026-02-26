@@ -365,6 +365,80 @@ public class SolrSearchService {
     }
 
     /**
+     * Get all failed doc_ids from Solr
+     * Failed docs are stored with doc_source = "_system_failed_"
+     */
+    public Set<String> getFailedDocIds() {
+        Set<String> failedIds = new HashSet<>();
+        try {
+            SolrQuery query = new SolrQuery("doc_source:_system_failed_");
+            query.setFields("doc_id");
+            query.setRows(Integer.MAX_VALUE);
+
+            QueryResponse response = solrClient.query(query);
+            for (SolrDocument doc : response.getResults()) {
+                String docId = getStringField(doc, "doc_id");
+                if (!docId.isEmpty()) {
+                    failedIds.add(docId);
+                }
+            }
+
+            if (!failedIds.isEmpty()) {
+                log.info("Loaded {} failed doc_ids from Solr", failedIds.size());
+            }
+
+        } catch (SolrServerException | IOException e) {
+            log.error("Error getting failed doc_ids: {}", e.getMessage(), e);
+        }
+        return failedIds;
+    }
+
+    /**
+     * Save failed doc_ids to Solr
+     * Each failed doc is stored as a marker document with doc_source = "_system_failed_"
+     */
+    public void saveFailedDocIds(List<String> docIds) {
+        if (docIds == null || docIds.isEmpty()) {
+            return;
+        }
+
+        try {
+            Collection<SolrInputDocument> solrDocs = new ArrayList<>();
+
+            for (String docId : docIds) {
+                SolrInputDocument solrDoc = new SolrInputDocument();
+                solrDoc.addField("id", "_failed_" + docId);
+                solrDoc.addField("doc_id", docId);
+                solrDoc.addField("doc_source", "_system_failed_");
+                solrDoc.addField("doc_name", "Failed Document Marker");
+                solrDoc.addField("content", "This document failed to process");
+                solrDocs.add(solrDoc);
+            }
+
+            solrClient.add(solrDocs);
+            solrClient.commit();
+
+            log.debug("Saved {} failed doc_ids to Solr", docIds.size());
+
+        } catch (SolrServerException | IOException e) {
+            log.error("Error saving failed doc_ids: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Clear all failed doc_ids from Solr
+     */
+    public void clearFailedDocIds() {
+        try {
+            solrClient.deleteByQuery("doc_source:_system_failed_");
+            solrClient.commit();
+            log.info("Cleared all failed doc_ids from Solr");
+        } catch (SolrServerException | IOException e) {
+            log.error("Error clearing failed doc_ids: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * Check if Solr is healthy
      */
     public boolean isHealthy() {

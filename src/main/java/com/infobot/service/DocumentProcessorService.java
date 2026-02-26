@@ -236,13 +236,48 @@ public class DocumentProcessorService {
 
     /**
      * Extract text from .doc (old Word format)
+     * Falls back to .docx parsing if the file is misnamed
      */
     private String extractDocText(byte[] content) throws IOException {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(content);
              HWPFDocument document = new HWPFDocument(bis);
              WordExtractor extractor = new WordExtractor(document)) {
             return extractor.getText();
+        } catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e) {
+            // File is a .docx saved with .doc extension, try docx parser
+            log.info("File appears to be OOXML format (.docx), trying docx parser");
+            return extractDocxText(content);
+        } catch (IllegalArgumentException e) {
+            // May also indicate wrong format
+            log.info("File format mismatch, trying docx parser: {}", e.getMessage());
+            return extractDocxText(content);
+        } catch (org.apache.poi.poifs.filesystem.NotOLE2FileException e) {
+            // File is not a valid OLE2 file, might be plain text or corrupted
+            log.warn("File is not a valid Word document (not OLE2 format)");
+            // Try as plain text as last resort
+            String text = new String(content);
+            if (text.length() > 0 && isPrintableText(text)) {
+                log.info("Treating as plain text file");
+                return text;
+            }
+            throw e;
         }
+    }
+
+    /**
+     * Check if text is mostly printable characters
+     */
+    private boolean isPrintableText(String text) {
+        if (text == null || text.isEmpty()) return false;
+        int printable = 0;
+        int total = Math.min(text.length(), 1000); // Check first 1000 chars
+        for (int i = 0; i < total; i++) {
+            char c = text.charAt(i);
+            if (c >= 32 && c < 127 || c == '\n' || c == '\r' || c == '\t') {
+                printable++;
+            }
+        }
+        return (double) printable / total > 0.8; // 80% printable
     }
 
     /**
@@ -261,11 +296,25 @@ public class DocumentProcessorService {
 
     /**
      * Extract text from .xls (old Excel format)
+     * Falls back to .xlsx parsing if the file is misnamed
      */
     private String extractXlsText(byte[] content) throws IOException {
         try (ByteArrayInputStream bis = new ByteArrayInputStream(content);
              HSSFWorkbook workbook = new HSSFWorkbook(bis)) {
             return extractWorkbookText(workbook);
+        } catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e) {
+            // File is actually .xlsx saved with .xls extension
+            log.info("File appears to be OOXML format (.xlsx), trying xlsx parser");
+            return extractXlsxText(content);
+        } catch (org.apache.poi.poifs.filesystem.NotOLE2FileException e) {
+            // File might be CSV or plain text
+            log.warn("File is not a valid Excel document (not OLE2 format)");
+            String text = new String(content);
+            if (text.length() > 0 && isPrintableText(text)) {
+                log.info("Treating as plain text/CSV file");
+                return text;
+            }
+            throw e;
         }
     }
 
