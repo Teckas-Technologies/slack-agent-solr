@@ -9,16 +9,26 @@ echo "=========================================="
 echo "   InfoBot - Slack Agent with Apache Solr"
 echo "=========================================="
 
-# Check if Solr is running
+SOLR_HOME=${SOLR_HOME:-/opt/solr-9.7.0}
+COLLECTION_NAME="documents"
+
+# Start Solr if not running
 if ! curl -s "http://localhost:8983/solr/admin/ping" > /dev/null 2>&1; then
-    echo "⚠️  Apache Solr is not running!"
-    echo "   Start Solr first: ./scripts/start-solr.sh"
-    echo ""
-    read -p "Do you want to continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+    echo "Starting Solr..."
+    $SOLR_HOME/bin/solr start
+    sleep 5
+fi
+
+# Create collection if it doesn't exist
+if ! curl -s "http://localhost:8983/solr/$COLLECTION_NAME/admin/ping" > /dev/null 2>&1; then
+    echo "Creating Solr collection '$COLLECTION_NAME'..."
+    $SOLR_HOME/bin/solr create -c $COLLECTION_NAME
+fi
+
+# Copy schema to Solr
+if [ -f "$PROJECT_DIR/solr/documents/conf/managed-schema" ]; then
+    echo "Syncing Solr schema..."
+    cp "$PROJECT_DIR/solr/documents/conf/managed-schema" "$SOLR_HOME/server/solr/$COLLECTION_NAME/conf/"
 fi
 
 # Build the application
