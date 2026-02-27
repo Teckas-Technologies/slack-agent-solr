@@ -236,32 +236,158 @@ public class DocumentProcessorService {
 
     /**
      * Extract text from .doc (old Word format)
-     * Falls back to .docx parsing if the file is misnamed
+     * Falls back to other formats if the file is misnamed (docx, HTML, RTF, plain text)
      */
     private String extractDocText(byte[] content) throws IOException {
+        // First, try to detect the actual format from content
+        String detectedFormat = detectFileFormat(content);
+        log.debug("Detected format for .doc file: {}", detectedFormat);
+
+        // Try based on detected format first
+        if ("HTML".equals(detectedFormat)) {
+            log.info("File is HTML saved as .doc, parsing as HTML");
+            return extractHtmlText(content);
+        }
+        if ("RTF".equals(detectedFormat)) {
+            log.info("File is RTF saved as .doc, parsing as RTF");
+            return extractRtfText(content);
+        }
+        if ("OOXML".equals(detectedFormat)) {
+            log.info("File is OOXML (.docx) saved as .doc");
+            return extractDocxText(content);
+        }
+
+        // Try Word 97-2003 format
         try (ByteArrayInputStream bis = new ByteArrayInputStream(content);
              HWPFDocument document = new HWPFDocument(bis);
              WordExtractor extractor = new WordExtractor(document)) {
             return extractor.getText();
         } catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e) {
-            // File is a .docx saved with .doc extension, try docx parser
             log.info("File appears to be OOXML format (.docx), trying docx parser");
             return extractDocxText(content);
-        } catch (IllegalArgumentException e) {
-            // May also indicate wrong format
-            log.info("File format mismatch, trying docx parser: {}", e.getMessage());
-            return extractDocxText(content);
-        } catch (org.apache.poi.poifs.filesystem.NotOLE2FileException e) {
-            // File is not a valid OLE2 file, might be plain text or corrupted
-            log.warn("File is not a valid Word document (not OLE2 format)");
-            // Try as plain text as last resort
-            String text = new String(content);
-            if (text.length() > 0 && isPrintableText(text)) {
-                log.info("Treating as plain text file");
-                return text;
-            }
-            throw e;
+        } catch (IllegalArgumentException | org.apache.poi.poifs.filesystem.NotOLE2FileException e) {
+            log.info("Not a standard Word format, trying alternative parsers...");
+            // Try all fallbacks in order
+            return extractWithFallbacks(content);
         }
+    }
+
+    /**
+     * Detect file format from magic bytes/content
+     */
+    private String detectFileFormat(byte[] content) {
+        if (content == null || content.length < 10) return "UNKNOWN";
+
+        // Check for HTML (starts with <!DOCTYPE, <html, or <HTML)
+        String start = new String(content, 0, Math.min(content.length, 1000)).trim().toLowerCase();
+        if (start.startsWith("<!doctype html") || start.startsWith("<html") ||
+            start.contains("<html>") || start.contains("<head>") || start.contains("<body>")) {
+            return "HTML";
+        }
+
+        // Check for RTF (starts with {\rtf)
+        if (start.startsWith("{\\rtf")) {
+            return "RTF";
+        }
+
+        // Check for OOXML/ZIP (PK signature)
+        if (content[0] == 0x50 && content[1] == 0x4B) {
+            return "OOXML";
+        }
+
+        // Check for OLE2 (D0 CF 11 E0)
+        if (content[0] == (byte) 0xD0 && content[1] == (byte) 0xCF &&
+            content[2] == (byte) 0x11 && content[3] == (byte) 0xE0) {
+            return "OLE2";
+        }
+
+        // Check if mostly printable text
+        if (isPrintableText(new String(content, 0, Math.min(content.length, 1000)))) {
+            return "TEXT";
+        }
+
+        return "UNKNOWN";
+    }
+
+    /**
+     * Try multiple fallback parsers to extract text
+     */
+    private String extractWithFallbacks(byte[] content) throws IOException {
+        // 1. Try HTML
+        try {
+            String htmlText = extractHtmlText(content);
+            if (htmlText != null && !htmlText.trim().isEmpty()) {
+                log.info("Successfully extracted as HTML");
+                return htmlText;
+            }
+        } catch (Exception e) {
+            log.debug("HTML parsing failed: {}", e.getMessage());
+        }
+
+        // 2. Try RTF
+        try {
+            String rtfText = extractRtfText(content);
+            if (rtfText != null && !rtfText.trim().isEmpty()) {
+                log.info("Successfully extracted as RTF");
+                return rtfText;
+            }
+        } catch (Exception e) {
+            log.debug("RTF parsing failed: {}", e.getMessage());
+        }
+
+        // 3. Try docx
+        try {
+            String docxText = extractDocxText(content);
+            if (docxText != null && !docxText.trim().isEmpty()) {
+                log.info("Successfully extracted as DOCX");
+                return docxText;
+            }
+        } catch (Exception e) {
+            log.debug("DOCX parsing failed: {}", e.getMessage());
+        }
+
+        // 4. Try plain text as last resort
+        String text = new String(content);
+        if (isPrintableText(text)) {
+            log.info("Treating as plain text file");
+            // Clean up the text
+            return cleanPlainText(text);
+        }
+
+        throw new IOException("Could not extract text - unsupported or corrupted file format");
+    }
+
+    /**
+     * Extract text from HTML content
+     */
+    private String extractHtmlText(byte[] content) {
+        String html = new String(content);
+        // Use Jsoup to parse HTML and extract text
+        org.jsoup.nodes.Document doc = org.jsoup.Jsoup.parse(html);
+        return doc.text();
+    }
+
+    /**
+     * Extract text from RTF content
+     */
+    private String extractRtfText(byte[] content) throws IOException {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(content)) {
+            javax.swing.text.rtf.RTFEditorKit rtfParser = new javax.swing.text.rtf.RTFEditorKit();
+            javax.swing.text.Document document = rtfParser.createDefaultDocument();
+            rtfParser.read(bis, document, 0);
+            return document.getText(0, document.getLength());
+        } catch (javax.swing.text.BadLocationException e) {
+            throw new IOException("Error parsing RTF: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Clean plain text by removing control characters
+     */
+    private String cleanPlainText(String text) {
+        if (text == null) return "";
+        // Remove null bytes and other control characters except newlines/tabs
+        return text.replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "").trim();
     }
 
     /**

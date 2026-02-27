@@ -242,7 +242,7 @@ public class GeminiService {
             }
         }
 
-        for (int i = 0; i < Math.min(uniqueUrls.size(), 5); i++) {
+        for (int i = 0; i < Math.min(uniqueUrls.size(), 3); i++) {
             sources.append(i + 1).append(". ").append(uniqueUrls.get(i)).append("\n");
         }
 

@@ -134,15 +134,21 @@ public class SolrSearchService {
             solrQuery.setParam("qf",
                 String.format("doc_name^%.1f content^%.1f", docNameBoost * 5, contentBoost));
 
-            // Phrase boost for exact matches - very high for doc_name
-            solrQuery.setParam("pf", "doc_name^100 content^10");
-            solrQuery.setParam("pf2", "doc_name^50 content^5");
+            // Phrase boost for exact matches - high boost for exact phrase in content
+            solrQuery.setParam("pf", "doc_name^100 content^50");
+            solrQuery.setParam("pf2", "doc_name^50 content^25");
+            solrQuery.setParam("pf3", "doc_name^25 content^10");
+
+            // Phrase slop - allow words within N positions for phrase matching
+            solrQuery.setParam("ps", "2");
+            solrQuery.setParam("ps2", "4");
+            solrQuery.setParam("ps3", "6");
 
             // Tie breaker to allow other fields to contribute
             solrQuery.setParam("tie", "0.1");
 
-            // Minimum should match - require more terms to match
-            solrQuery.setParam("mm", "2<75% 5<60%");
+            // Minimum should match - more lenient for better recall
+            solrQuery.setParam("mm", "2<50% 4<40%");
 
             // Number of results
             solrQuery.setRows(numResults > 0 ? numResults : maxResults);

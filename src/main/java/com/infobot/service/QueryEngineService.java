@@ -7,7 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,16 +69,18 @@ public class QueryEngineService {
             }
 
             List<Document> documents = searchResult.getDocuments();
-            log.info("Found {} documents", documents.size());
+            log.info("Found {} document chunks", documents.size());
+
+            // Group by doc_id and take best chunk per document (top 3 unique docs)
+            List<Document> uniqueDocs = groupByDocIdAndTakeTop(documents, 3);
+            log.info("Grouped to {} unique documents", uniqueDocs.size());
 
             // Generate answer using Gemini
             String answer;
-            if (documents.isEmpty()) {
+            if (uniqueDocs.isEmpty()) {
                 answer = geminiService.generateGeneralAnswer(query);
             } else {
-                // Use top documents for context
-                List<Document> contextDocs = documents.subList(0, Math.min(10, documents.size()));
-                answer = geminiService.generateAnswer(query, contextDocs);
+                answer = geminiService.generateAnswer(query, uniqueDocs);
             }
 
             log.info("Generated answer with {} documents", documents.size());
@@ -226,6 +231,34 @@ public class QueryEngineService {
         }
 
         return query;
+    }
+
+    /**
+     * Group documents by doc_id and return top N unique documents
+     * Takes the highest scoring chunk for each document
+     */
+    private List<Document> groupByDocIdAndTakeTop(List<Document> documents, int topN) {
+        // Use LinkedHashMap to maintain insertion order (highest score first)
+        Map<String, Document> uniqueDocsMap = new LinkedHashMap<>();
+
+        for (Document doc : documents) {
+            String docId = doc.getDocId();
+            if (docId == null || docId.isEmpty()) {
+                docId = doc.getId();
+            }
+
+            // Only keep the first (highest scoring) chunk for each document
+            if (!uniqueDocsMap.containsKey(docId)) {
+                uniqueDocsMap.put(docId, doc);
+
+                // Stop once we have enough unique documents
+                if (uniqueDocsMap.size() >= topN) {
+                    break;
+                }
+            }
+        }
+
+        return new ArrayList<>(uniqueDocsMap.values());
     }
 
     /**
