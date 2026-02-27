@@ -96,8 +96,18 @@ public class GeminiService {
         }
 
         try {
-            String prompt = "You are InfoBot, a helpful AI assistant. Answer the following question concisely:\n\n" +
-                    "Question: " + query + "\n\nAnswer:";
+            String prompt = """
+                    You are InfoBot, a helpful AI assistant.
+
+                    Question: %s
+
+                    Instructions:
+                    - Answer concisely in plain text (2-4 sentences)
+                    - No markdown, bullet points, or special formatting
+                    - Natural, conversational tone
+
+                    Answer:
+                    """.formatted(query);
 
             return callGeminiApi(prompt);
 
@@ -142,20 +152,26 @@ public class GeminiService {
         return """
                 You are InfoBot, an intelligent AI assistant that answers questions based on document context.
 
-                **Context Documents:**
+                Context Documents:
                 %s
 
-                **User Question:** %s
+                User Question: %s
 
-                **Critical Instructions:**
-                1. **First, carefully check if ANY of the provided context documents contain relevant information about the question.**
-                2. **If the documents ARE relevant**: Answer using ONLY the information from these documents. Cite specific document sources.
-                3. **If the documents are NOT relevant**: Clearly state "The provided context documents do not contain information about [topic]."
-                4. **DO NOT make assumptions** - if the documents mention something vaguely related but don't actually answer the question, say so.
-                5. **Be strict about relevance** - only use documents that directly address the user's question.
-                6. If the user is asking for a file URL, provide it from the document metadata.
+                Instructions:
+                1. Check if the provided documents contain relevant information about the question.
+                2. If relevant: Answer using ONLY information from these documents. Keep it concise.
+                3. If not relevant: Say "I couldn't find information about [topic] in the indexed documents."
+                4. Do not make assumptions or add information not in the documents.
+                5. If user asks for a file URL, provide it from document metadata.
 
-                **Answer:**
+                Response Format:
+                - Use plain text only, no markdown or bullet points
+                - Keep answers concise (2-4 sentences when possible)
+                - Use simple paragraphs with line breaks
+                - Do not use *, **, -, or bullet symbols
+                - Write in a natural, conversational tone
+
+                Answer:
                 """.formatted(context, query);
     }
 
