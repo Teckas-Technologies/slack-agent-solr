@@ -6,6 +6,10 @@
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
+# Increase file limits (suppress errors if not allowed)
+ulimit -n 65000 2>/dev/null || true
+ulimit -u 65000 2>/dev/null || true
+
 echo "=========================================="
 echo "   InfoBot - Slack Agent with Apache Solr"
 echo "=========================================="
