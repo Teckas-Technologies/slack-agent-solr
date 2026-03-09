@@ -9,7 +9,7 @@ A Slack bot that indexes documents from Google Drive and Confluence, answers que
 ## Step 1: Install Solr
 
 ```bash
-git clone <your-repo-url> slack-agent-solr
+git clone https://github.com/Teckas-Technologies/slack-agent-solr.git
 cd slack-agent-solr
 
 # Install Solr (auto-detects Linux/macOS)
