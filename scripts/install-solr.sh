@@ -75,15 +75,16 @@ MIRRORS=(
     "https://dlcdn.apache.org/solr/solr/${SOLR_VERSION}/solr-${SOLR_VERSION}.tgz"
 )
 
-# Use curl on macOS (wget may not be installed)
+# Download with progress bar
 download_file() {
     local url=$1
     local output=$2
 
-    if command -v wget &> /dev/null; then
-        wget -q "$url" -O "$output"
-    elif command -v curl &> /dev/null; then
-        curl -sL "$url" -o "$output"
+    echo "Downloading: $url"
+    if command -v curl &> /dev/null; then
+        curl -L --progress-bar "$url" -o "$output"
+    elif command -v wget &> /dev/null; then
+        wget --progress=bar:force "$url" -O "$output"
     else
         echo "Neither wget nor curl found. Installing curl..."
         if [ "$OS" == "mac" ]; then
@@ -91,7 +92,7 @@ download_file() {
         else
             sudo apt install -y curl
         fi
-        curl -sL "$url" -o "$output"
+        curl -L --progress-bar "$url" -o "$output"
     fi
 }
 
