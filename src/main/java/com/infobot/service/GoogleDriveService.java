@@ -146,6 +146,8 @@ public class GoogleDriveService {
                     .setQ(query)
                     .setFields("files(id, name)")
                     .setPageSize(1000)
+                    .setSupportsAllDrives(true)
+                    .setIncludeItemsFromAllDrives(true)
                     .execute();
 
             for (File folder : result.getFiles()) {
@@ -173,6 +175,7 @@ public class GoogleDriveService {
             // First, verify we can access this folder
             File folder = driveService.files().get(folderId)
                     .setFields("id, name")
+                    .setSupportsAllDrives(true)
                     .execute();
             log.info("Accessing folder: '{}' (ID: {})", folder.getName(), folderId);
 
@@ -183,6 +186,8 @@ public class GoogleDriveService {
                     .setQ(query)
                     .setFields("files(id, name, mimeType, webViewLink, modifiedTime, createdTime, size)")
                     .setPageSize(1000)
+                    .setSupportsAllDrives(true)
+                    .setIncludeItemsFromAllDrives(true)
                     .execute();
 
             log.info("Folder {} has {} files", folderId, result.getFiles().size());
@@ -226,6 +231,8 @@ public class GoogleDriveService {
                         .setFields("nextPageToken, files(id, name, mimeType, webViewLink, modifiedTime, createdTime, size)")
                         .setPageSize(100)
                         .setPageToken(pageToken)
+                        .setSupportsAllDrives(true)
+                        .setIncludeItemsFromAllDrives(true)
                         .execute();
 
                 for (File file : result.getFiles()) {
@@ -267,6 +274,7 @@ public class GoogleDriveService {
                         .executeMediaAndDownloadTo(outputStream);
             } else {
                 driveService.files().get(fileId)
+                        .setSupportsAllDrives(true)
                         .executeMediaAndDownloadTo(outputStream);
             }
 
