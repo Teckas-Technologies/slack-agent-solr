@@ -114,10 +114,12 @@ public class GoogleDriveService {
             }
 
             log.info("Found {} total folders to scan", allFolderIds.size());
+            log.info("Folder IDs to scan: {}", allFolderIds);
 
             // Get documents from each folder
             for (String folderId : allFolderIds) {
                 List<DriveDocument> folderDocs = getDocumentsFromFolder(folderId);
+                log.info("Folder {} returned {} documents", folderId, folderDocs.size());
                 allDocuments.addAll(folderDocs);
             }
 
@@ -152,8 +154,10 @@ public class GoogleDriveService {
                 subfolders.addAll(getSubfolders(folder.getId()));
             }
 
+        } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException e) {
+            log.error("Google Drive API Error - Subfolder: {}, Status: {}, Error: {}", parentFolderId, e.getStatusCode(), e.getDetails().getMessage());
         } catch (IOException e) {
-            log.error("Error getting subfolders for {}: {}", parentFolderId, e.getMessage());
+            log.error("Google Drive Error - Subfolder: {}, Error: {}", parentFolderId, e.getMessage());
         }
 
         return subfolders;
@@ -166,6 +170,12 @@ public class GoogleDriveService {
         List<DriveDocument> documents = new ArrayList<>();
 
         try {
+            // First, verify we can access this folder
+            File folder = driveService.files().get(folderId)
+                    .setFields("id, name")
+                    .execute();
+            log.info("Accessing folder: '{}' (ID: {})", folder.getName(), folderId);
+
             String query = String.format("'%s' in parents and mimeType!='%s' and trashed=false",
                     folderId, FOLDER_MIME_TYPE);
 
@@ -174,6 +184,8 @@ public class GoogleDriveService {
                     .setFields("files(id, name, mimeType, webViewLink, modifiedTime, createdTime, size)")
                     .setPageSize(1000)
                     .execute();
+
+            log.info("Folder {} has {} files", folderId, result.getFiles().size());
 
             for (File file : result.getFiles()) {
                 if (isSupportedFile(file)) {
@@ -190,8 +202,10 @@ public class GoogleDriveService {
                 }
             }
 
+        } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException e) {
+            log.error("Google Drive API Error - Folder: {}, Status: {}, Error: {}", folderId, e.getStatusCode(), e.getDetails().getMessage());
         } catch (IOException e) {
-            log.error("Error getting documents from folder {}: {}", folderId, e.getMessage());
+            log.error("Google Drive Error - Folder: {}, Error: {}", folderId, e.getMessage());
         }
 
         return documents;
