@@ -156,13 +156,39 @@ Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
 
 ---
 
-## Step 9: Test
+## Step 9: Test & Usage
 
-In Slack:
+### Invite Bot to Channel
 ```
 /invite @InfoBot
+```
+
+### How to Use
+
+| Where | How to Ask | Example |
+|-------|------------|---------|
+| In Channel | Must @mention | `@InfoBot What is leave policy?` |
+| Direct Message | No mention needed | `What is leave policy?` |
+
+### In Channels (Need @mention)
+```
 @InfoBot status
 @InfoBot What is the leave policy?
+@InfoBot Find document about HR
+```
+
+### In Direct Message (No @mention)
+```
+status
+What is the leave policy?
+Find document about HR
+```
+
+### Test Commands
+```
+status              → Check bot health
+help                → Show available commands
+What is [topic]?    → Search and answer
 ```
 
 ---
