@@ -134,23 +134,12 @@ nohup ./start.sh > app.log 2>&1 &
 
 ## Step 8: Connect Slack to App
 
-You need a public URL for Slack to send events.
-
-### Using ngrok (Development)
-
-```bash
-ngrok http 8000
-```
-
-Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
-
-### Configure Slack
-
 1. Go to https://api.slack.com/apps → Select your app
 2. **Event Subscriptions** → Request URL:
    ```
-   https://your-url/slack/events
+   http://YOUR_SERVER_IP:8000/slack/events
    ```
+   Example: `http://192.168.1.100:8000/slack/events`
 3. Wait for **Verified** checkmark
 4. **Save Changes**
 
