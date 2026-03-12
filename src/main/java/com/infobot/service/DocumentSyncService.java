@@ -124,7 +124,7 @@ public class DocumentSyncService {
 
             log.info("Sync completed. Total - Processed: {}, Skipped: {}, Failed: {}",
                     totalProcessed, totalSkipped, totalFailed);
-            log.info("Total documents indexed: {}", solrSearchService.getDocumentCount());
+            log.info("Total indexed: {} unique docs, {} chunks", indexedDocIds.size(), solrSearchService.getDocumentCount());
 
         } catch (Exception e) {
             log.error("Error during sync: {}", e.getMessage(), e);
