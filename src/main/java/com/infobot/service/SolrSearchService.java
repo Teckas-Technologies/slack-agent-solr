@@ -561,7 +561,6 @@ public class SolrSearchService {
             SolrQuery query = new SolrQuery("doc_source:" + source);
             query.setFields("doc_id", "doc_name", "url", "doc_type", "modified_time");
             query.setRows(10000);
-            query.addSort("doc_name", SolrQuery.ORDER.asc);
 
             // Group by doc_id to get unique documents
             query.set("group", true);
