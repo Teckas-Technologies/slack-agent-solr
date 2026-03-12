@@ -146,16 +146,22 @@ public class DocumentSyncService {
         int totalDocs = driveDocuments.size();
         int alreadyDone = 0;
 
-        // Count already processed/failed docs
+        // Count already processed/failed docs for this source only
+        int driveIndexed = 0;
+        int driveFailed = 0;
         for (DriveDocument doc : driveDocuments) {
-            if (indexedDocIds.contains(doc.getId()) || failedDocIds.contains(doc.getId())) {
+            if (indexedDocIds.contains(doc.getId())) {
+                driveIndexed++;
+                alreadyDone++;
+            } else if (failedDocIds.contains(doc.getId())) {
+                driveFailed++;
                 alreadyDone++;
             }
         }
         int remaining = totalDocs - alreadyDone;
 
-        log.info("Found {} documents in Google Drive ({} indexed, {} failed, {} remaining to process)",
-                totalDocs, indexedDocIds.size(), failedDocIds.size(), remaining);
+        log.info("Google Drive: Found {} docs, {} already indexed, {} failed, {} remaining",
+                totalDocs, driveIndexed, driveFailed, remaining);
 
         for (DriveDocument driveDoc : driveDocuments) {
             try {
@@ -235,19 +241,22 @@ public class DocumentSyncService {
         int totalPages = confluencePages.size();
         int alreadyDone = 0;
 
-        // Count already processed/failed pages
+        // Count already processed/failed pages for this source only
+        int confIndexed = 0;
+        int confFailed = 0;
         for (DriveDocument page : confluencePages) {
-            if (indexedDocIds.contains(page.getId()) || failedDocIds.contains(page.getId())) {
+            if (indexedDocIds.contains(page.getId())) {
+                confIndexed++;
+                alreadyDone++;
+            } else if (failedDocIds.contains(page.getId())) {
+                confFailed++;
                 alreadyDone++;
             }
         }
         int remaining = totalPages - alreadyDone;
 
-        log.info("Found {} pages in Confluence ({} indexed, {} failed, {} remaining to process)",
-                totalPages,
-                (int) confluencePages.stream().filter(p -> indexedDocIds.contains(p.getId())).count(),
-                (int) confluencePages.stream().filter(p -> failedDocIds.contains(p.getId())).count(),
-                remaining);
+        log.info("Confluence: Found {} pages, {} already indexed, {} failed, {} remaining",
+                totalPages, confIndexed, confFailed, remaining);
 
         for (DriveDocument page : confluencePages) {
             try {

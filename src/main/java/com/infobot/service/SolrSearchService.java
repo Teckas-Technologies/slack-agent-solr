@@ -512,4 +512,84 @@ public class SolrSearchService {
         }
         return Integer.parseInt(value.toString());
     }
+
+    /**
+     * Get document count by source (google_drive or confluence)
+     */
+    public long getDocumentCountBySource(String source) {
+        try {
+            SolrQuery query = new SolrQuery("doc_source:" + source);
+            query.setRows(0);
+            QueryResponse response = solrClient.query(query);
+            return response.getResults().getNumFound();
+        } catch (SolrServerException | IOException e) {
+            log.error("Error getting document count for source {}: {}", source, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get unique document count by source
+     */
+    public long getUniqueDocCountBySource(String source) {
+        try {
+            SolrQuery query = new SolrQuery("doc_source:" + source);
+            query.setRows(0);
+            query.setFacet(true);
+            query.addFacetField("doc_id");
+            query.setFacetLimit(-1);
+            query.setFacetMinCount(1);
+
+            QueryResponse response = solrClient.query(query);
+
+            if (response.getFacetField("doc_id") != null) {
+                return response.getFacetField("doc_id").getValueCount();
+            }
+            return 0;
+        } catch (SolrServerException | IOException e) {
+            log.error("Error getting unique doc count for source {}: {}", source, e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get list of indexed documents by source (unique doc_id, doc_name, url)
+     */
+    public List<Map<String, Object>> getIndexedDocsBySource(String source) {
+        List<Map<String, Object>> docs = new ArrayList<>();
+        try {
+            SolrQuery query = new SolrQuery("doc_source:" + source);
+            query.setFields("doc_id", "doc_name", "url", "doc_type", "modified_time");
+            query.setRows(10000);
+            query.addSort("doc_name", SolrQuery.ORDER.asc);
+
+            // Group by doc_id to get unique documents
+            query.set("group", true);
+            query.set("group.field", "doc_id");
+            query.set("group.limit", 1);
+
+            QueryResponse response = solrClient.query(query);
+
+            if (response.getGroupResponse() != null) {
+                response.getGroupResponse().getValues().forEach(groupCommand -> {
+                    groupCommand.getValues().forEach(group -> {
+                        if (group.getResult() != null && !group.getResult().isEmpty()) {
+                            SolrDocument doc = group.getResult().get(0);
+                            Map<String, Object> docInfo = new java.util.LinkedHashMap<>();
+                            docInfo.put("doc_id", getStringField(doc, "doc_id"));
+                            docInfo.put("doc_name", getStringField(doc, "doc_name"));
+                            docInfo.put("url", getStringField(doc, "url"));
+                            docInfo.put("doc_type", getStringField(doc, "doc_type"));
+                            docInfo.put("modified_time", getStringField(doc, "modified_time"));
+                            docs.add(docInfo);
+                        }
+                    });
+                });
+            }
+
+        } catch (SolrServerException | IOException e) {
+            log.error("Error getting indexed docs for source {}: {}", source, e.getMessage());
+        }
+        return docs;
+    }
 }
