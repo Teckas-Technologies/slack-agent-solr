@@ -70,9 +70,9 @@ public class DocumentSyncService {
     }
 
     /**
-     * Periodic sync - runs every 2 minutes
+     * Periodic sync - runs every 2 hours
      */
-    @Scheduled(fixedRateString = "${sync.interval-minutes:2}000" + "60")
+    @Scheduled(fixedRate = 7200000)  // 2 hours in milliseconds
     public void scheduledSync() {
         if (!syncEnabled) {
             return;
