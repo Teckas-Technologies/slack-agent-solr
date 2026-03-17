@@ -25,7 +25,7 @@ public class GeminiService {
     @Value("${gemini.api-key:}")
     private String apiKey;
 
-    @Value("${gemini.model:gemini-2.0-flash}")
+    @Value("${gemini.model:gemini-2.5-pro}")
     private String model;
 
     @Value("${gemini.temperature:0.3}")
