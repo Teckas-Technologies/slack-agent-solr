@@ -1,8 +1,10 @@
 package com.infobot.controller;
 
+import com.infobot.service.ConfluenceService;
 import com.infobot.service.GeminiService;
 import com.infobot.service.GoogleDriveService;
 import com.infobot.service.SolrSearchService;
+import com.infobot.model.DriveDocument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,7 @@ public class HealthController {
     private final SolrSearchService solrSearchService;
     private final GoogleDriveService googleDriveService;
     private final GeminiService geminiService;
+    private final ConfluenceService confluenceService;
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
@@ -88,6 +91,98 @@ public class HealthController {
         result.put("source", "confluence");
         result.put("count", docs.size());
         result.put("documents", docs);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Test Confluence connection and fetch documents
+     */
+    @GetMapping("/api/test/confluence")
+    public ResponseEntity<Map<String, Object>> testConfluence() {
+        Map<String, Object> result = new HashMap<>();
+
+        // Check if configured
+        if (!confluenceService.isAvailable()) {
+            result.put("status", "NOT_CONFIGURED");
+            result.put("message", "Confluence credentials not configured. Check CONFLUENCE_BASE_URL, CONFLUENCE_USERNAME, and CONFLUENCE_API_TOKEN in .env");
+            return ResponseEntity.ok(result);
+        }
+
+        result.put("configured", true);
+
+        try {
+            // Try to fetch documents
+            List<DriveDocument> docs = confluenceService.getAllDocuments();
+
+            if (docs.isEmpty()) {
+                result.put("status", "NO_DOCUMENTS");
+                result.put("message", "Connection successful but no documents found. Check if user has access to Confluence spaces.");
+                result.put("documents_found", 0);
+            } else {
+                result.put("status", "SUCCESS");
+                result.put("message", "Successfully connected to Confluence");
+                result.put("documents_found", docs.size());
+
+                // Show first 10 document names
+                List<String> docNames = docs.stream()
+                        .limit(10)
+                        .map(DriveDocument::getName)
+                        .toList();
+                result.put("sample_documents", docNames);
+            }
+
+        } catch (Exception e) {
+            result.put("status", "ERROR");
+            result.put("message", "Failed to connect to Confluence: " + e.getMessage());
+            result.put("error", e.getClass().getSimpleName());
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Test Google Drive connection and fetch documents
+     */
+    @GetMapping("/api/test/drive")
+    public ResponseEntity<Map<String, Object>> testDrive() {
+        Map<String, Object> result = new HashMap<>();
+
+        // Check if configured
+        if (!googleDriveService.isAvailable()) {
+            result.put("status", "NOT_CONFIGURED");
+            result.put("message", "Google Drive not configured. Check GOOGLE_APPLICATION_CREDENTIALS and GOOGLE_DRIVE_FOLDER_IDS in .env");
+            return ResponseEntity.ok(result);
+        }
+
+        result.put("configured", true);
+
+        try {
+            // Try to fetch documents
+            List<DriveDocument> docs = googleDriveService.getAllDocuments();
+
+            if (docs.isEmpty()) {
+                result.put("status", "NO_DOCUMENTS");
+                result.put("message", "Connection successful but no documents found. Check folder access permissions.");
+                result.put("documents_found", 0);
+            } else {
+                result.put("status", "SUCCESS");
+                result.put("message", "Successfully connected to Google Drive");
+                result.put("documents_found", docs.size());
+
+                // Show first 10 document names
+                List<String> docNames = docs.stream()
+                        .limit(10)
+                        .map(DriveDocument::getName)
+                        .toList();
+                result.put("sample_documents", docNames);
+            }
+
+        } catch (Exception e) {
+            result.put("status", "ERROR");
+            result.put("message", "Failed to connect to Google Drive: " + e.getMessage());
+            result.put("error", e.getClass().getSimpleName());
+        }
+
         return ResponseEntity.ok(result);
     }
 }

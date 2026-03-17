@@ -120,6 +120,7 @@ public class ConfluenceService {
         // Otherwise, fetch all accessible spaces
         try {
             String url = baseUrl + "/wiki/rest/api/space?limit=100";
+            log.info("Fetching Confluence spaces from: {}", url);
             Request request = new Request.Builder()
                     .url(url)
                     .header("Authorization", authHeader)
@@ -137,6 +138,9 @@ public class ConfluenceService {
                         String key = space.get("key").getAsString();
                         spaces.add(key);
                     }
+                } else {
+                    String errorBody = response.body() != null ? response.body().string() : "No response body";
+                    log.error("Failed to fetch Confluence spaces. Status: {}, Response: {}", response.code(), errorBody);
                 }
             }
 
