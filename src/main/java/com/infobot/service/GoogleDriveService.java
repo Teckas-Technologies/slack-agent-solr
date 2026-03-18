@@ -64,12 +64,15 @@ public class GoogleDriveService {
                 return;
             }
 
-            credentials = credentials.createScoped(Collections.singletonList(DriveScopes.DRIVE_READONLY));
-
             // Apply domain-wide delegation if delegated user is specified
             if (delegatedUser != null && !delegatedUser.isEmpty()) {
                 credentials = ((ServiceAccountCredentials) credentials).createDelegated(delegatedUser);
+                credentials = credentials.createScoped(Collections.singletonList(DriveScopes.DRIVE_READONLY));
                 log.info("Using domain-wide delegation with user: {}", delegatedUser);
+            } else {
+                credentials = credentials.createScoped(Collections.singletonList(DriveScopes.DRIVE_READONLY));
+                log.info("Using direct service account access (no delegation). "
+                        + "Ensure folders/shared drives are shared with the service account email.");
             }
 
             driveService = new Drive.Builder(

@@ -19,6 +19,17 @@ sudo ./scripts/install-solr.sh
 
 ---
 
+### Fix Solr Logs Directory (if needed)
+
+If Solr fails to start with `Logs directory could not be created`, run:
+
+```bash
+sudo mkdir -p /opt/solr-9.7.0/server/logs
+sudo chown $(whoami) /opt/solr-9.7.0/server/logs
+```
+
+---
+
 ## Step 2: Create Slack Bot
 
 1. Go to https://api.slack.com/apps
@@ -56,7 +67,25 @@ Go to **OAuth & Permissions** → Add scopes:
 3. Go to **IAM & Admin** → **Service Accounts** → Create
 4. Go to **Keys** → **Add Key** → **JSON** → Download
 5. Save as `service-account.json` in project folder
-6. Share your Google Drive folder with the service account email
+
+### Share Drive with Service Account (Recommended)
+
+Share your Google Drive folder or Shared Drive directly with the service account email (found in `service-account.json` under `client_email`, e.g. `your-service@project.iam.gserviceaccount.com`):
+
+- **For Shared Drives:** Open the Shared Drive → Manage members → Add the service account email as a **Content Manager** (or Viewer)
+- **For regular folders:** Right-click the folder → Share → Add the service account email
+
+This approach does **not** require `GOOGLE_DELEGATED_USER`. The service account accesses files shared directly with it.
+
+### Alternative: Domain-Wide Delegation
+
+If you prefer to use domain-wide delegation instead of sharing folders directly:
+
+1. Go to **Google Workspace Admin Console** → **Security** → **API Controls** → **Domain-wide Delegation**
+2. Add the service account's **Client ID** with scope: `https://www.googleapis.com/auth/drive.readonly`
+3. Set `GOOGLE_DELEGATED_USER` in `.env` to a workspace user email (e.g. `admin@company.com`)
+
+> **Note:** Even with domain-wide delegation, you must specify a user to impersonate — this is a Google API requirement. Use the direct sharing approach above if you want to avoid specifying a user email.
 
 **Get Folder ID from URL:**
 ```
@@ -102,8 +131,8 @@ SLACK_SIGNING_SECRET=your-secret
 
 # Google Drive
 GOOGLE_APPLICATION_CREDENTIALS=/home/username/slack-agent-solr/service-account.json
-GOOGLE_DELEGATED_USER=user@company.com
 GOOGLE_DRIVE_FOLDER_IDS=your-folder-id
+# GOOGLE_DELEGATED_USER=user@company.com  # Only needed if using domain-wide delegation
 
 # Gemini
 GEMINI_API_KEY=your-api-key
@@ -205,6 +234,7 @@ pkill -f slack-agent-solr
 | Issue | Solution |
 |-------|----------|
 | Bot not responding | Check if app is running: `ps aux \| grep slack` |
+| Solr not starting (logs dir error) | Run: `sudo mkdir -p /opt/solr-9.7.0/server/logs && sudo chown $(whoami) /opt/solr-9.7.0/server/logs` |
 | Solr not starting | Run: `sudo ./scripts/install-solr.sh` |
 | Documents not syncing | Check folder ID and service account permissions |
 | Slack verification fails | Ensure URL is publicly accessible |
