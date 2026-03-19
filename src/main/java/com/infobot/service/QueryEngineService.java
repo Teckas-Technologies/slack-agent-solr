@@ -71,8 +71,8 @@ public class QueryEngineService {
             List<Document> documents = searchResult.getDocuments();
             log.info("Found {} document chunks", documents.size());
 
-            // Group by doc_id and take best chunk per document (top 2 unique docs)
-            List<Document> uniqueDocs = groupByDocIdAndTakeTop(documents, 2);
+            // Group by doc_id and take best chunk per document (top 4 unique docs)
+            List<Document> uniqueDocs = groupByDocIdAndTakeTop(documents, 4);
             log.info("Grouped to {} unique documents", uniqueDocs.size());
 
             // Generate answer using Gemini
