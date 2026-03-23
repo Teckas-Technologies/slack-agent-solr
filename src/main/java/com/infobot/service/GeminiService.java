@@ -150,7 +150,7 @@ public class GeminiService {
      */
     private String buildPrompt(String query, String context) {
         return """
-                You are InfoBot, an intelligent AI assistant that answers questions based on document context.
+                You are InfoBot, a helpful AI assistant for answering questions using company documents.
 
                 Context Documents:
                 %s
@@ -158,11 +158,13 @@ public class GeminiService {
                 User Question: %s
 
                 Instructions:
-                1. Check if the provided documents contain relevant information about the question.
-                2. If relevant: Answer using ONLY information from these documents. Keep it concise.
-                3. If not relevant: Say "I couldn't find information about [topic] in the indexed documents."
-                4. Do not make assumptions or add information not in the documents.
-                5. If user asks for a file URL, provide it from document metadata.
+                1. Analyze the document names and folder paths to understand context. For example, a DPA found in "Customers/CompanyX/" folder belongs to CompanyX.
+                2. Use folder structure to associate documents with customers, projects, or departments.
+                3. Try your best to find relevant information. Look for partial matches and related topics.
+                4. If you find relevant information, start your response with "Based on your question, I found..." and provide the answer.
+                5. If the documents contain related but not exact information, share what you found and explain how it might help.
+                6. Only if documents are completely unrelated, say "I couldn't find specific information about this topic. Try rephrasing your question or asking about a related topic."
+                7. If user asks for a file URL, provide it from document metadata.
 
                 Response Format:
                 - Use plain text only, no markdown or bullet points
@@ -170,6 +172,7 @@ public class GeminiService {
                 - Use simple paragraphs with line breaks
                 - Do not use *, **, -, or bullet symbols
                 - Write in a natural, conversational tone
+                - Be helpful and informative
 
                 Answer:
                 """.formatted(context, query);
