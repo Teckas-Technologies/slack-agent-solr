@@ -31,7 +31,7 @@ google:
 # Gemini AI Configuration
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  model: gemini-3.1-pro
+  model: gemini-3.1-pro-preview
   temperature: 0.3
   max-output-tokens: 2048
 
